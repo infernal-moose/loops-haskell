@@ -26,6 +26,9 @@ library
       case-insensitive,
       exceptions,
       transformers
+  build-tool-depends:
+      hlint:hlint,
+      fourmolu:fourmolu
   ghc-options: -Wall -O2
 
 

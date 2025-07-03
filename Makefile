@@ -7,9 +7,9 @@ test:
 .PHONY: test
 
 lint:
-	stack run hlint .
+	stack exec -- hlint .
 .PHONY: lint
 
 format:
-	stack run ormolu
+	stack exec -- fourmolu --mode inplace src/ test/
 .PHONY: format
