@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: haskell/actions/setup@v2
+      - uses: haskell-actions/setup@v2
         with:
-          ghc-version: "9.8.4"
-          stack-version: "latest"
+          enable-stack: true
+          stack-setup-ghc: true
 
       - name: Cache Stack
         uses: actions/cache@v4

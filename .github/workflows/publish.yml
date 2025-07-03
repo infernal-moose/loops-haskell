@@ -19,7 +19,6 @@ jobs:
         with:
           enable-stack: true
           stack-setup-ghc: true
-          ghc-version: "9.8.4"
 
       - name: Cache Stack
         uses: actions/cache@v4
