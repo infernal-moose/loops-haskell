@@ -300,9 +300,13 @@ autoParam :: Text -> Maybe BS8.ByteString
 autoParam v = Just (BS8.pack $ T.unpack v)
 
 getCustomProperties :: LoopsClient -> Text -> Text -> IO Value
-getCustomProperties c list_ = do
-     unless (list_ `elem` ["all", "custom"]) $ throwIO $ ValidationError "list must be 'all' or 'custom'."
-    get c "v1/contacts/properties" [("list", autoParam list_)]
+getCustomProperties c list_ =
+    do
+            unless (list_ `elem` ["all", "custom"]) $ throwIO $ ValidationError "list must be 'all' or 'custom'."
+        get
+        c
+        "v1/contacts/properties"
+        [("list", autoParam list_)]
 
 getMailingLists :: LoopsClient -> Text -> IO Value
 getMailingLists c = get c "v1/lists" []
