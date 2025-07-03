@@ -1,0 +1,40 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell/actions/setup@v2
+        with:
+          ghc-version: "9.8.4"
+          stack-version: "latest"
+
+      - name: Cache Stack
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-
+
+      - name: Install tools
+        run: |
+          stack install hlint ormolu
+
+      - name: Run HLint
+        run: hlint .
+
+      - name: Check formatting with Ormolu
+        run: |
+          ormolu --mode check $(git ls-files '*.hs')

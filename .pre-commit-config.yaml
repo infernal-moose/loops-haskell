@@ -1,0 +1,11 @@
+repos:
+  - repo: https://github.com/mpickering/hlint-pre-commit
+    rev: v3.6.1
+    hooks:
+      - id: hlint
+        args: ["."]
+  - repo: https://github.com/tweag/ormolu
+    rev: v0.5.2.1
+    hooks:
+      - id: ormolu
+        args: ["--mode", "inplace", "--"]
