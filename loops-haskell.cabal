@@ -23,8 +23,12 @@ library
       http-conduit,
       http-types,
       regex-tdfa,
+      case-insensitive,
       exceptions,
       transformers
+  build-tool-depends:
+      hlint:hlint,
+      fourmolu:fourmolu
   ghc-options: -Wall -O2
 
 
@@ -41,4 +45,5 @@ test-suite loopsdk-spec
       aeson,
       text,
       unordered-containers,
-      bytestring
+      bytestring,
+      case-insensitive
