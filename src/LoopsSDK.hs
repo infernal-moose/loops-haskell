@@ -46,7 +46,7 @@ module LoopsSDK (
 where
 
 import Control.Exception (Exception, throwIO)
-import Control.Monad (when, unless)
+import Control.Monad (unless, when)
 import Data.Aeson (
     FromJSON,
     Object,
@@ -61,11 +61,11 @@ import Data.Aeson (
 import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
 import Data.Aeson.Types (Pair)
+import Data.Bifunctor (first)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.CaseInsensitive as CI
 import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
-import Data.Bifunctor (first)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -303,11 +303,12 @@ autoParam v = Just (BS8.pack $ T.unpack v)
 getCustomProperties :: LoopsClient -> Text -> Text -> IO Value
 getCustomProperties c list_ apiKey = do
     unless (list_ `elem` ["all", "custom"]) $
-        throwIO $ ValidationError "list must be 'all' or 'custom'."
+        throwIO $
+            ValidationError "list must be 'all' or 'custom'."
     get c "v1/contacts/properties" [("list", autoParam list_)] apiKey
 
 getMailingLists :: LoopsClient -> Text -> IO Value
-getMailingLists c apiKey = get c "v1/lists" [] apiKey
+getMailingLists c = get c "v1/lists" []
 
 -- ------------------------------------------------------------------
 -- Events & transactional emails
