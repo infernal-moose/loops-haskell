@@ -3,3 +3,8 @@ repos:
     rev: v0.18.0.0
     hooks:
       - id: fourmolu
+
+  - repo: https://github.com/ndmitchell/hlint
+    rev: v3.10
+    hooks:
+      - id: hlint
