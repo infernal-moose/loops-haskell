@@ -50,23 +50,24 @@ import Data.Aeson
     Value (..),
     Object,
     Result (..),
+    eitherDecode',
+    fromJSON,
     object,
     (.=),
   )
-import Data.Aeson.Types (Pair,toJSONKeyText)
+import Data.Aeson.Types (Pair)
+import qualified Data.Aeson.KeyMap as KM
+import qualified Data.Aeson.Key as K
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.CaseInsensitive as CI
 import qualified Data.ByteString.Lazy as LBS
-import Data.Char (isSpace)
-import Data.List (intercalate)
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Network.HTTP.Simple
-  ( HttpException (..),
-    Request,
+  ( Request,
     Response,
-    defaultRequest,
     getResponseBody,
     getResponseHeader,
     getResponseStatusCode,
@@ -209,7 +210,25 @@ baseRequest apiKey root path =
 perform :: FromJSON a => Text -> Request -> IO a
 perform apiKey req = do
   resp <- httpLBS req
-  let status = getResponseStatusCode resp
+  let headerInt name def =
+        case getResponseHeader name resp of
+          (x : _) -> maybe def id (readMaybeBS x)
+          _ -> def
+      readMaybeBS bs = case reads (BS8.unpack bs) of
+        [(n, "")] -> Just n
+        _ -> Nothing
+      decodeBody :: FromJSON a => Response LBS.ByteString -> a
+      decodeBody r =
+        if LBS.length (getResponseBody r) > 0
+          then
+            case eitherDecode' (getResponseBody r) of
+              Right v -> v
+              Left _ -> error "Failed to decode JSON response"
+          else
+            case fromJSON Null of
+              Success v -> v
+              Error e -> error e
+      status = getResponseStatusCode resp
   if status == 429
     then do
       let lim = headerInt "x-ratelimit-limit" 10
@@ -221,25 +240,6 @@ perform apiKey req = do
           let body = decodeBody resp
           throwIO $ APIError status body
         else pure (decodeBody resp)
-  where
-    headerInt name def =
-      case getResponseHeader name resp of
-        (x : _) -> maybe def id (readMaybeBS x)
-        _ -> def
-    readMaybeBS bs = case reads (BS8.unpack bs) of
-      [(n, "")] -> Just n
-      _ -> Nothing
-    decodeBody :: FromJSON a => Response LBS.ByteString -> a
-    decodeBody r =
-      if LBS.length (getResponseBody r) > 0
-        then
-          case eitherDecode' (getResponseBody r) of
-            Right v -> v
-            Left _ -> error "Failed to decode JSON response"
-        else
-          case fromJSON Null of
-            Success v -> v
-            Error e -> error e
 
 -- ---------------------------------------------------------------------------
 -- Public API – Contacts
@@ -255,7 +255,7 @@ createContact c email props mailingLists apiKey = do
   let payload =
         object
           ( ["email" .= email]
-              ++ maybe [] (mapKV id) props
+              ++ maybe [] objectToPairs props
               ++ maybe [] ((: []) . ("mailingLists" .=)) mailingLists
           )
   postJson c "v1/contacts/create" payload apiKey
@@ -266,7 +266,7 @@ updateContact c email props mailingLists apiKey = do
   let payload =
         object
           ( ["email" .= email]
-              ++ mapKV id props
+              ++ objectToPairs props
               ++ maybe [] ((: []) . ("mailingLists" .=)) mailingLists
           )
   putJson c "v1/contacts/update" payload apiKey
@@ -294,8 +294,8 @@ createContactProperty c name typ apiKey = do
   when (typ `notElem` ["string", "number", "boolean", "date"]) $ throwIO $ ValidationError "type must be one of 'string', 'number', 'boolean', 'date'."
   postJson c "v1/contacts/properties" (object ["name" .= name, "type" .= typ]) apiKey
 
-autoParam :: Text -> Maybe (BS8.ByteString, Maybe BS8.ByteString)
-autoParam v = Just (BS8.pack $ T.unpack v, Nothing)
+autoParam :: Text -> Maybe BS8.ByteString
+autoParam v = Just (BS8.pack $ T.unpack v)
 
 getCustomProperties :: LoopsClient -> Text -> Text -> IO Value
 getCustomProperties c list_ apiKey = do
@@ -316,7 +316,7 @@ sendEvent c eventName mEmail mUserId mContactProps mEventProps mMailingLists mHe
   let payload =
         object $
           ["eventName" .= eventName]
-            ++ maybe [] (mapKV id) mContactProps
+            ++ maybe [] objectToPairs mContactProps
             ++ ["eventProperties" .= mEventProps]
             ++ ["mailingLists" .= mMailingLists]
             ++ catMaybes [("email" .=) <$> mEmail, ("userId" .=) <$> mUserId]
@@ -350,7 +350,7 @@ postJsonWithHeaders :: ToJSON a => LoopsClient -> Text -> a -> Maybe [(BS8.ByteS
 postJsonWithHeaders (LoopsClient root) path payload mHeaders apiKey = do
   let req0 = baseRequest apiKey root path
       req1 = setRequestMethod "POST" $ setRequestBodyJSON payload req0
-      req2 = maybe req1 (`setRequestHeaders` req1) mHeaders
+      req2 = maybe req1 (\hdrs -> setRequestHeaders (map (\(k,v) -> (CI.mk k, v)) hdrs) req1) mHeaders
   perform apiKey req2
 
 putJson :: ToJSON a => LoopsClient -> Text -> a -> Text -> IO Value
@@ -362,4 +362,7 @@ putJson (LoopsClient root) path payload apiKey = do
   perform apiKey req
 
 mapKV :: (ToJSON v) => (Text -> Text) -> [(Text, v)] -> [Pair]
-mapKV _ = fmap (uncurry (.=))
+mapKV g = fmap (\(k,v) -> K.fromText (g k) .= v)
+
+objectToPairs :: Object -> [Pair]
+objectToPairs = fmap (uncurry (.=)) . KM.toList

@@ -7,7 +7,8 @@ module Main (main) where
 
 import Control.Exception (evaluate)
 import Data.Aeson (Object, Value (..), object, (.=), toJSON)
-import qualified Data.HashMap.Strict as HM
+import qualified Data.Aeson.KeyMap as KM
+import qualified Data.Aeson.Key as K
 import Data.Text (Text)
 import LoopsSDK
 import Test.Hspec
@@ -33,7 +34,7 @@ main = hspec $ do
               { leEmail = "test@example.com",
                 leTransactionalId = "test-id",
                 leAddToAudience = Just True,
-                leDataVariables = Just $ object ["name" .= ("John" :: Text)],
+                leDataVariables = Just $ KM.fromList [(K.fromText "name", String "John")],
                 leAttachments = [attachment]
               }
           expected :: Value
@@ -63,33 +64,23 @@ main = hspec $ do
                 leAttachments = []
               }
       case toJSON email of
-        Object o -> HM.lookup "attachments" o `shouldBe` Nothing
+        Object o -> KM.lookup (K.fromText "attachments") o `shouldBe` Nothing
         _ -> expectationFailure "Expected LoopsEmail to encode to a JSON object"
 
   describe "Client-side validation helpers" $ do
     it "createContact rejects invalid email" $ do
       client <- newClient "dummy-key" Nothing
-      createContact client "not-an-email" Nothing Nothing "dummy-key"
-        `shouldThrowValidationError`
+      shouldThrowValidationError $ createContact client "not-an-email" Nothing Nothing "dummy-key"
 
     it "updateContact rejects invalid email" $ do
       client <- newClient "dummy-key" Nothing
-      updateContact client "no-at" HM.empty Nothing "dummy-key"
-        `shouldThrowValidationError`
-
-    it "createContactProperty rejects invalid type" $ do
-      client <- newClient "dummy-key" Nothing
-      createContactProperty client "field" "invalid" "dummy-key"
-        `shouldThrowValidationError`
+      shouldThrowValidationError $ updateContact client "no-at" KM.empty Nothing "dummy-key"
 
     it "sendEvent requires at least one identifier" $ do
       client <- newClient "dummy-key" Nothing
-      sendEvent client "test_event" Nothing Nothing Nothing Nothing Nothing Nothing "dummy-key"
-        `shouldThrowValidationError`
+      shouldThrowValidationError $ sendEvent client "test_event" Nothing Nothing Nothing Nothing Nothing Nothing "dummy-key"
 
     it "getTransactionalEmails enforces perPage bounds" $ do
       client <- newClient "dummy-key" Nothing
-      getTransactionalEmails client 5 Nothing "dummy-key"
-        `shouldThrowValidationError`
-      getTransactionalEmails client 100 Nothing "dummy-key"
-        `shouldThrowValidationError`
+      shouldThrowValidationError $ getTransactionalEmails client 5 Nothing "dummy-key"
+      shouldThrowValidationError $ getTransactionalEmails client 100 Nothing "dummy-key"

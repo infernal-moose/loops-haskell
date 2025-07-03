@@ -23,6 +23,7 @@ library
       http-conduit,
       http-types,
       regex-tdfa,
+      case-insensitive,
       exceptions,
       transformers
   ghc-options: -Wall -O2
@@ -41,4 +42,5 @@ test-suite loopsdk-spec
       aeson,
       text,
       unordered-containers,
-      bytestring
+      bytestring,
+      case-insensitive
