@@ -46,7 +46,7 @@ module LoopsSDK (
 where
 
 import Control.Exception (Exception, throwIO)
-import Control.Monad (when)
+import Control.Monad (when, unless)
 import Data.Aeson (
     FromJSON,
     Object,
@@ -64,7 +64,8 @@ import Data.Aeson.Types (Pair)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.CaseInsensitive as CI
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
+import Data.Bifunctor (first)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -300,16 +301,13 @@ autoParam :: Text -> Maybe BS8.ByteString
 autoParam v = Just (BS8.pack $ T.unpack v)
 
 getCustomProperties :: LoopsClient -> Text -> Text -> IO Value
-getCustomProperties c list_ =
-    do
-            unless (list_ `elem` ["all", "custom"]) $ throwIO $ ValidationError "list must be 'all' or 'custom'."
-        get
-        c
-        "v1/contacts/properties"
-        [("list", autoParam list_)]
+getCustomProperties c list_ apiKey = do
+    unless (list_ `elem` ["all", "custom"]) $
+        throwIO $ ValidationError "list must be 'all' or 'custom'."
+    get c "v1/contacts/properties" [("list", autoParam list_)] apiKey
 
 getMailingLists :: LoopsClient -> Text -> IO Value
-getMailingLists c = get c "v1/lists" []
+getMailingLists c apiKey = get c "v1/lists" [] apiKey
 
 -- ------------------------------------------------------------------
 -- Events & transactional emails
@@ -375,9 +373,6 @@ putJson (LoopsClient root) path payload apiKey = do
                 setRequestBodyJSON payload $
                     baseRequest apiKey root path
     perform apiKey req
-
-mapKV :: (ToJSON v) => (Text -> Text) -> [(Text, v)] -> [Pair]
-mapKV g = fmap (\(k, v) -> K.fromText (g k) .= v)
 
 objectToPairs :: Object -> [Pair]
 objectToPairs = fmap (uncurry (.=)) . KM.toList

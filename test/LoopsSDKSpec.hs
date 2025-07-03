@@ -6,8 +6,7 @@
 -}
 module Main (main) where
 
-import Control.Exception (evaluate)
-import Data.Aeson (Object, Value (..), object, toJSON, (.=))
+import Data.Aeson (Value (..), object, toJSON, (.=))
 import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
 import Data.Text (Text)

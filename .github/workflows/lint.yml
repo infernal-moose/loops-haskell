@@ -1,8 +1,6 @@
 name: Lint
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: ["*"]
 
@@ -13,8 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: haskell-actions/run-fourmolu@v11
+      - name: Set up HLint
+        uses: haskell-actions/hlint-setup@v2
+
+      - name: Run HLint
+        uses: haskell-actions/hlint-run@v2
         with:
-          version: "0.18.0.0"
-          pattern: |
-            **/*.hs
+          path: .
+          fail-on: warning
