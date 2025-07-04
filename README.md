@@ -12,42 +12,40 @@ A self-contained Haskell module that acts as a Loops.so SDK, providing the same 
 
 ## Installation
 
-Add `loops-sdk` to your project. `pip install loops-sdk`
-
-### Dependencies
-
-The SDK requires the following Python packages:
-- `requests` (for HTTP API calls)
+Add `loops` to your project.
 
 
 ## Quick Start
 
 ```haskell
-import LoopsClient
-import LoopsEmail
-import Attachment
+{-# LANGUAGE OverloadedStrings #-}
 
--- Initialize the client
-client = LoopsClient(api_key="your-loops-api-key")
+import LoopsSDK
+import Data.Aeson (object, (.=))
+import Data.Text (Text)
 
-# Or use environment variable LOOPS_TOKEN
-client = LoopsClient()
+main :: IO ()
+main = do
+    -- Initialise the client (optionally pass Nothing for the default API root)
+    client <- newClient "your-loops-api-key" Nothing
 
-# Send an invite email
-response = send_transactional_email(
-    client=client,
-    email="newuser@example.com",
-    transactional_id="your-custom-template-id",
-    add_to_audience=True,
-    data_variables={
-        "customerName": "Alice Johnson",
-        "invoiceNumber": "INV-001",
-        "amount": "$99.99"
-    },
-    attachments=[attachment]
-)
+    -- Build the email payload
+    let email =
+            LoopsEmail
+                { leEmail = "newuser@example.com"
+                , leTransactionalId = "your-custom-template-id"
+                , leAddToAudience = Just True
+                , leDataVariables = Just $ object
+                    [ "customerName"  .= ("Alice Johnson" :: Text)
+                    , "invoiceNumber" .= ("INV-001"       :: Text)
+                    , "amount"        .= ("$99.99"        :: Text)
+                    ]
+                , leAttachments = []
+                }
 
-print(f"Email sent successfully: {response}")
+    -- Send the email
+    resp <- sendTransactionalEmail client email Nothing "your-loops-api-key"
+    print resp
 ```
 
 ## API Reference
@@ -63,135 +61,107 @@ client = LoopsClient(api_key="your-api-key")
 **Parameters:**
 - `api_key` (optional): Your Loops API key. If not provided, will use the `LOOPS_TOKEN` environment variable.
 
-### Email Constructor Functions
-
-#### mk_invite_email(email, inviter_name, invite_url)
-
-Creates an invite email object.
-
-**Parameters:**
-- `email`: Recipient's email address
-- `inviter_name`: Name of the person sending the invite
-- `invite_url`: URL for the invitation
-
-**Returns:** `LoopsEmail` object
-
-#### mk_validation_email(email, name, verification_url)
-
-Creates a validation email object.
-
-**Parameters:**
-- `email`: Recipient's email address
-- `name`: Recipient's name
-- `verification_url`: URL for email verification
-
-**Returns:** `LoopsEmail` object
-
-#### mk_password_reset_email(email, name, reset_url)
-
-Creates a password reset email object.
-
-**Parameters:**
-- `email`: Recipient's email address
-- `name`: Recipient's name
-- `reset_url`: URL for password reset
-
-**Returns:** `LoopsEmail` object
-
 
 ## Usage Examples
 
 ### Basic Usage
 
 ```haskell
-import LoopsClient
-import LoopsEmail
-import Attachment
+{-# LANGUAGE OverloadedStrings #-}
 
--- Initialize client
-client = LoopsClient(api_key="your-api-key")
+import LoopsSDK
+import Data.Aeson (object, (.=))
+import Data.Text (Text)
 
-# Create and send an invite email
-invite_email = mk_invite_email(
-    email="user@example.com",
-    inviter_name="John Doe",
-    invite_url="https://example.com/invite/123"
-)
+main :: IO ()
+main = do
+    client <- newClient "your-api-key" Nothing
 
-response = client.send_transactional_email(invite_email)
+    let inviteEmail =
+            LoopsEmail
+                { leEmail = "user@example.com"
+                , leTransactionalId = "your-invite-template-id"
+                , leAddToAudience = Just True
+                , leDataVariables = Just $ object
+                    [ "inviterName" .= ("John Doe" :: Text)
+                    , "inviteUrl"   .= ("https://example.com/invite/123" :: Text)
+                    ]
+                , leAttachments = []
+                }
+
+    _ <- sendTransactionalEmail client inviteEmail Nothing "your-api-key"
+    pure ()
 ```
 
 ### Using Environment Variables
 
 ```haskell
-import os
-from loops_sdk import LoopsClient, send_validation_email
+{-# LANGUAGE OverloadedStrings #-}
 
-# Set environment variable
-os.environ["LOOPS_TOKEN"] = "your-api-key"
+import LoopsSDK
+import System.Environment (lookupEnv)
+import Data.Text (pack)
 
-# Client will automatically use the environment variable
-client = LoopsClient()
-
-# Send validation email
-response = send_validation_email(
-    client=client,
-    email="user@example.com",
-    name="Jane Smith",
-    verification_url="https://example.com/verify/abc123"
-)
+main :: IO ()
+main = do
+    token <- fmap pack <$> lookupEnv "LOOPS_TOKEN" >>= maybe (fail "LOOPS_TOKEN not set") pure
+    client <- newClient token Nothing
+    putStrLn "Client initialised successfully – ready to send emails!"
 ```
 
 ### Error Handling
 
 ```haskell
-import requests
-from loops_sdk import LoopsClient, send_password_reset_email
+{-# LANGUAGE OverloadedStrings #-}
 
-client = LoopsClient(api_key="your-api-key")
+import LoopsSDK
+import Control.Exception (try)
+import Data.Aeson (Value)
 
-try:
-    response = send_password_reset_email(
-        client=client,
-        email="user@example.com",
-        name="Bob Johnson",
-        reset_url="https://example.com/reset/xyz789"
-    )
-    print("Email sent successfully!")
-except requests.HTTPError as e:
-    print(f"Failed to send email: {e}")
-except ValueError as e:
-    print(f"Configuration error: {e}")
+main :: IO ()
+main = do
+    client <- newClient "your-api-key" Nothing
+    result <- try $ do
+        let email = LoopsEmail "user@example.com" "reset-template-id" (Just True) Nothing []
+        sendTransactionalEmail client email Nothing "your-api-key" :: IO Value
+    case result of
+        Left (e :: APIError) -> putStrLn $ "Failed to send email: " <> show e
+        Right _             -> putStrLn "Email sent successfully!"
 ```
 
 ### Custom Email with Attachments
 
 ```haskell
-from loops_sdk import LoopsClient, LoopsEmail, Attachment
+{-# LANGUAGE OverloadedStrings #-}
 
-client = LoopsClient(api_key="your-api-key")
+import LoopsSDK
+import Data.Aeson (object, (.=))
+import Data.Text (Text)
 
-# Create an attachment
-attachment = Attachment(
-    filename="invoice.pdf",
-    content_type="application/pdf",
-    data="base64-encoded-data-here"
-)
+main :: IO ()
+main = do
+    client <- newClient "your-api-key" Nothing
 
-# Create custom email
-custom_email = LoopsEmail(
-    email="customer@example.com",
-    transactional_id="your-custom-template-id",
-    add_to_audience=True,
-    data_variables={
-        "customerName": "Alice Johnson",
-        "invoiceNumber": "INV-001",
-        "amount": "$99.99"
-    },
-    attachments=[attachment]
-)
+    let attachment = Attachment
+            { filename = "invoice.pdf"
+            , contentType = "application/pdf"
+            , data_ = "base64-encoded-data-here"
+            }
 
-response = client.send_transactional_email(custom_email)
+        customEmail = LoopsEmail
+            { leEmail = "customer@example.com"
+            , leTransactionalId = "your-custom-template-id"
+            , leAddToAudience = Just True
+            , leDataVariables = Just $ object
+                [ "customerName"  .= ("Alice Johnson" :: Text)
+                , "invoiceNumber" .= ("INV-001"       :: Text)
+                , "amount"        .= ("$99.99"        :: Text)
+                ]
+            , leAttachments = [attachment]
+            }
+
+    _ <- sendTransactionalEmail client customEmail Nothing "your-api-key"
+    putStrLn "Email sent!"
 ```
 
 ## Testing
