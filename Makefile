@@ -1,4 +1,5 @@
 setup:
+	pre-commit install
 	stack build
 .PHONY: setup
 
