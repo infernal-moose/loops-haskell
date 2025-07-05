@@ -56,7 +56,8 @@ main = hspec $ do
             toJSON email `shouldBe` expected
 
         it "omits attachments key when list is empty" $ do
-            let email =
+            let email :: LoopsEmail (KM.KeyMap Value)
+                email =
                     LoopsEmail
                         { leEmail = "test@example.com"
                         , leTransactionalId = "test-id"
@@ -71,17 +72,17 @@ main = hspec $ do
     describe "Client-side validation helpers" $ do
         it "createContact rejects invalid email" $ do
             client <- newClient "dummy-key" Nothing
-            shouldThrowValidationError $ createContact client "not-an-email" Nothing Nothing "dummy-key"
+            shouldThrowValidationError $ createContact client "not-an-email" Nothing Nothing
 
         it "updateContact rejects invalid email" $ do
             client <- newClient "dummy-key" Nothing
-            shouldThrowValidationError $ updateContact client "no-at" KM.empty Nothing "dummy-key"
+            shouldThrowValidationError $ updateContact client "no-at" KM.empty Nothing
 
         it "sendEvent requires at least one identifier" $ do
             client <- newClient "dummy-key" Nothing
-            shouldThrowValidationError $ sendEvent client "test_event" Nothing Nothing Nothing Nothing Nothing Nothing "dummy-key"
+            shouldThrowValidationError $ sendEvent client "test_event" Nothing Nothing Nothing Nothing Nothing Nothing
 
         it "getTransactionalEmails enforces perPage bounds" $ do
             client <- newClient "dummy-key" Nothing
-            shouldThrowValidationError $ getTransactionalEmails client 5 Nothing "dummy-key"
-            shouldThrowValidationError $ getTransactionalEmails client 100 Nothing "dummy-key"
+            shouldThrowValidationError $ getTransactionalEmails client 5 Nothing
+            shouldThrowValidationError $ getTransactionalEmails client 100 Nothing

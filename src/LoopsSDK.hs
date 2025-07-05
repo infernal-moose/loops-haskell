@@ -58,7 +58,6 @@ import Data.Aeson (
     object,
     (.=),
  )
-import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
 import Data.Aeson.Types (Pair)
 import Data.Bifunctor (first)
@@ -141,16 +140,16 @@ Optional fields use 'Maybe'.
 We again provide a custom 'ToJSON' instance to map snake_case -> camelCase
 as expected by Loops.
 -}
-data LoopsEmail = LoopsEmail
+data LoopsEmail a = LoopsEmail
     { leEmail :: Text
     , leTransactionalId :: Text
     , leAddToAudience :: Maybe Bool
-    , leDataVariables :: Maybe Object
+    , leDataVariables :: Maybe a
     , leAttachments :: [Attachment]
     }
     deriving (Show, Eq, Generic)
 
-instance ToJSON LoopsEmail where
+instance (ToJSON a) => ToJSON (LoopsEmail a) where
     toJSON LoopsEmail{..} =
         object $ base ++ catMaybes optional ++ attachments
       where
@@ -186,21 +185,22 @@ validateEmail e =
 {- | Lightweight synchronous Loops API client.
 Mirrors the public surface of the official TypeScript SDK, but uses Haskell.
 -}
-newtype LoopsClient = LoopsClient
-    { _apiRoot :: Text -- ensures trailing '/'
+data LoopsClient = LoopsClient
+    { _apiKey :: Text
+    , _apiRoot :: Text -- ensures trailing '/'
     }
 
 -- | Construct a new 'LoopsClient' with the given API key and optional API root.
 newClient :: Text -> Maybe Text -> IO LoopsClient
 newClient apiKey mRoot = do
     let root = ensureSlash $ Data.Maybe.fromMaybe "https://app.loops.so/api/" mRoot
-    pure (LoopsClient root)
+    pure (LoopsClient apiKey root)
   where
     ensureSlash t = if T.isSuffixOf "/" t then t else T.snoc t '/'
 
 -- | Produce a fully-formed 'Request' with common headers applied.
-baseRequest :: Text -> Text -> Text -> Request
-baseRequest apiKey root path =
+baseRequest :: LoopsClient -> Text -> Request
+baseRequest (LoopsClient apiKey root) path =
     let full = T.unpack $ root <> path
         req0 = case parseRequest full of
             Left e -> error $ "Invalid URL: " ++ show e
@@ -212,8 +212,8 @@ baseRequest apiKey root path =
             req0
 
 -- | Perform the HTTP request and handle Loops-specific error conventions.
-perform :: (FromJSON a) => Text -> Request -> IO a
-perform apiKey req = do
+perform :: (FromJSON a) => Request -> IO a
+perform req = do
     resp <- httpLBS req
     let headerInt name def =
             case getResponseHeader name resp of
@@ -248,12 +248,11 @@ perform apiKey req = do
 -- Public API – Contacts
 -- ---------------------------------------------------------------------------
 
-testApiKey :: LoopsClient -> Text -> IO Value
-testApiKey (LoopsClient root) apiKey =
-    perform apiKey (baseRequest apiKey root "v1/api-key")
+testApiKey :: LoopsClient -> IO Value
+testApiKey client = perform (baseRequest client "v1/api-key")
 
-createContact :: LoopsClient -> Text -> Maybe Object -> Maybe Object -> Text -> IO Value
-createContact c email props mailingLists apiKey = do
+createContact :: LoopsClient -> Text -> Maybe Object -> Maybe Object -> IO Value
+createContact client email props mailingLists = do
     validateEmail email
     let payload =
             object
@@ -261,10 +260,10 @@ createContact c email props mailingLists apiKey = do
                     ++ maybe [] objectToPairs props
                     ++ maybe [] ((: []) . ("mailingLists" .=)) mailingLists
                 )
-    postJson c "v1/contacts/create" payload apiKey
+    postJson client "v1/contacts/create" payload
 
-updateContact :: LoopsClient -> Text -> Object -> Maybe Object -> Text -> IO Value
-updateContact c email props mailingLists apiKey = do
+updateContact :: LoopsClient -> Text -> Object -> Maybe Object -> IO Value
+updateContact client email props mailingLists = do
     validateEmail email
     let payload =
             object
@@ -272,43 +271,41 @@ updateContact c email props mailingLists apiKey = do
                     ++ objectToPairs props
                     ++ maybe [] ((: []) . ("mailingLists" .=)) mailingLists
                 )
-    putJson c "v1/contacts/update" payload apiKey
+    putJson client "v1/contacts/update" payload
 
-findContact :: LoopsClient -> Maybe Text -> Maybe Text -> Text -> IO Value
-findContact c mEmail mUserId apiKey = do
+findContact :: LoopsClient -> Maybe Text -> Maybe Text -> IO Value
+findContact client mEmail mUserId = do
     when (Data.Maybe.isJust mEmail && Data.Maybe.isJust mUserId) $ throwIO $ ValidationError "Only one of 'email' or 'user_id' may be provided."
     when (Data.Maybe.isNothing mEmail && Data.Maybe.isNothing mUserId) $ throwIO $ ValidationError "You must provide either 'email' or 'user_id'."
     let qs = catMaybes [("email",) . Just . BS8.pack . T.unpack <$> mEmail, ("userId",) . Just . BS8.pack . T.unpack <$> mUserId]
-    get c "v1/contacts/find" qs apiKey
+    get client "v1/contacts/find" qs
 
-deleteContact :: LoopsClient -> Maybe Text -> Maybe Text -> Text -> IO Value
-deleteContact c mEmail mUserId apiKey = do
+deleteContact :: LoopsClient -> Maybe Text -> Maybe Text -> IO Value
+deleteContact client mEmail mUserId = do
     when (Data.Maybe.isJust mEmail && Data.Maybe.isJust mUserId) $ throwIO $ ValidationError "Only one of 'email' or 'user_id' may be provided."
     when (Data.Maybe.isNothing mEmail && Data.Maybe.isNothing mUserId) $ throwIO $ ValidationError "You must provide either 'email' or 'user_id'."
     let payload = object $ catMaybes [("email" .=) <$> mEmail, ("userId" .=) <$> mUserId]
-    postJson c "v1/contacts/delete" payload apiKey
+    postJson client "v1/contacts/delete" payload
 
 -- ------------------------------------------------------------------
 -- Contact properties & mailing lists
 -- ------------------------------------------------------------------
 
-createContactProperty :: LoopsClient -> Text -> Text -> Text -> IO Value
-createContactProperty c name typ apiKey = do
+createContactProperty :: LoopsClient -> Text -> Text -> IO Value
+createContactProperty client name typ = do
     unless (typ `elem` ["string", "number", "boolean", "date"]) $ throwIO $ ValidationError "type must be one of 'string', 'number', 'boolean', 'date'."
-    postJson c "v1/contacts/properties" (object ["name" .= name, "type" .= typ]) apiKey
+    postJson client "v1/contacts/properties" (object ["name" .= name, "type" .= typ])
 
 autoParam :: Text -> Maybe BS8.ByteString
 autoParam v = Just (BS8.pack $ T.unpack v)
 
-getCustomProperties :: LoopsClient -> Text -> Text -> IO Value
-getCustomProperties c list_ apiKey = do
-    unless (list_ `elem` ["all", "custom"]) $
-        throwIO $
-            ValidationError "list must be 'all' or 'custom'."
-    get c "v1/contacts/properties" [("list", autoParam list_)] apiKey
+getCustomProperties :: LoopsClient -> Text -> IO Value
+getCustomProperties client list_ = do
+    unless (list_ `elem` ["all", "custom"]) $ throwIO $ ValidationError "list must be 'all' or 'custom'."
+    get client "v1/contacts/properties" [("list", autoParam list_)]
 
-getMailingLists :: LoopsClient -> Text -> IO Value
-getMailingLists c = get c "v1/lists" []
+getMailingLists :: LoopsClient -> IO Value
+getMailingLists client = get client "v1/lists" []
 
 -- ------------------------------------------------------------------
 -- Events & transactional emails
@@ -323,9 +320,8 @@ sendEvent ::
     Maybe Object ->
     Maybe Object ->
     Maybe [(BS8.ByteString, BS8.ByteString)] ->
-    Text ->
     IO Value
-sendEvent c eventName mEmail mUserId mContactProps mEventProps mMailingLists mHeaders apiKey = do
+sendEvent client eventName mEmail mUserId mContactProps mEventProps mMailingLists mHeaders = do
     unless (Data.Maybe.isJust mEmail || Data.Maybe.isJust mUserId) $ throwIO $ ValidationError "You must provide either 'email' or 'user_id'."
     let payload =
             object $
@@ -334,46 +330,45 @@ sendEvent c eventName mEmail mUserId mContactProps mEventProps mMailingLists mHe
                     ++ ["eventProperties" .= mEventProps]
                     ++ ["mailingLists" .= mMailingLists]
                     ++ catMaybes [("email" .=) <$> mEmail, ("userId" .=) <$> mUserId]
-    postJsonWithHeaders c "v1/events/send" payload mHeaders apiKey
+    postJsonWithHeaders client "v1/events/send" payload mHeaders
 
-sendTransactionalEmail :: LoopsClient -> LoopsEmail -> Maybe [(BS8.ByteString, BS8.ByteString)] -> Text -> IO Value
-sendTransactionalEmail c email =
-    postJsonWithHeaders c "v1/transactional" (toJSON email)
+sendTransactionalEmail :: (ToJSON a) => LoopsClient -> LoopsEmail a -> Maybe [(BS8.ByteString, BS8.ByteString)] -> IO Value
+sendTransactionalEmail client email = postJsonWithHeaders client "v1/transactional" (toJSON email)
 
-getTransactionalEmails :: LoopsClient -> Int -> Maybe Text -> Text -> IO Value
-getTransactionalEmails c perPage mCursor apiKey = do
+getTransactionalEmails :: LoopsClient -> Int -> Maybe Text -> IO Value
+getTransactionalEmails client perPage mCursor = do
     when (perPage < 10 || perPage > 50) $ throwIO $ ValidationError "per_page must be between 10 and 50."
     let qs = ("perPage", Just . BS8.pack $ show perPage) : maybe [] (\cur -> [("cursor", Just $ BS8.pack $ T.unpack cur)]) mCursor
-    get c "v1/transactional" qs apiKey
+    get client "v1/transactional" qs
 
 -- ---------------------------------------------------------------------------
 -- Internal HTTP helpers
 -- ---------------------------------------------------------------------------
 
-get :: LoopsClient -> Text -> [(BS8.ByteString, Maybe BS8.ByteString)] -> Text -> IO Value
-get (LoopsClient root) path qs apiKey = do
+get :: LoopsClient -> Text -> [(BS8.ByteString, Maybe BS8.ByteString)] -> IO Value
+get client path qs = do
     let req =
             setRequestQueryString qs $
-                baseRequest apiKey root path
-    perform apiKey req
+                baseRequest client path
+    perform req
 
-postJson :: (ToJSON a) => LoopsClient -> Text -> a -> Text -> IO Value
-postJson c path payload = postJsonWithHeaders c path payload Nothing
+postJson :: (ToJSON a) => LoopsClient -> Text -> a -> IO Value
+postJson client path payload = postJsonWithHeaders client path payload Nothing
 
-postJsonWithHeaders :: (ToJSON a) => LoopsClient -> Text -> a -> Maybe [(BS8.ByteString, BS8.ByteString)] -> Text -> IO Value
-postJsonWithHeaders (LoopsClient root) path payload mHeaders apiKey = do
-    let req0 = baseRequest apiKey root path
+postJsonWithHeaders :: (ToJSON a) => LoopsClient -> Text -> a -> Maybe [(BS8.ByteString, BS8.ByteString)] -> IO Value
+postJsonWithHeaders client path payload mHeaders = do
+    let req0 = baseRequest client path
         req1 = setRequestMethod "POST" $ setRequestBodyJSON payload req0
         req2 = maybe req1 (\hdrs -> setRequestHeaders (map (Data.Bifunctor.first CI.mk) hdrs) req1) mHeaders
-    perform apiKey req2
+    perform req2
 
-putJson :: (ToJSON a) => LoopsClient -> Text -> a -> Text -> IO Value
-putJson (LoopsClient root) path payload apiKey = do
+putJson :: (ToJSON a) => LoopsClient -> Text -> a -> IO Value
+putJson client path payload = do
     let req =
             setRequestMethod "PUT" $
                 setRequestBodyJSON payload $
-                    baseRequest apiKey root path
-    perform apiKey req
+                    baseRequest client path
+    perform req
 
 objectToPairs :: Object -> [Pair]
 objectToPairs = fmap (uncurry (.=)) . KM.toList
