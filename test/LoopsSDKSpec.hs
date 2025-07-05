@@ -1,9 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Test suite for the LoopsSDK module.
-  This mirrors the behaviour covered by the original Python tests but in
-  idiomatic Haskell using the @hspec@ framework.
--}
+{- | Test suite for the LoopsSDK module.-}
 module Main (main) where
 
 import Data.Aeson (Value (..), object, toJSON, (.=))
@@ -86,3 +83,19 @@ main = hspec $ do
             client <- newClient "dummy-key" Nothing
             shouldThrowValidationError $ getTransactionalEmails client 5 Nothing
             shouldThrowValidationError $ getTransactionalEmails client 100 Nothing
+
+        it "findContact rejects invalid email" $ do
+            client <- newClient "dummy-key" Nothing
+            shouldThrowValidationError (findContact client (Left "bad-email" :: Either Text Text))
+
+        it "deleteContact rejects invalid email" $ do
+            client <- newClient "dummy-key" Nothing
+            shouldThrowValidationError (deleteContact client (Left "bad-email" :: Either Text Text))
+
+        it "createContactProperty rejects invalid type" $ do
+            client <- newClient "dummy-key" Nothing
+            shouldThrowValidationError (createContactProperty client "prop" "integer")
+
+        it "getContactProperties rejects invalid list param" $ do
+            client <- newClient "dummy-key" Nothing
+            shouldThrowValidationError (getContactProperties client "unknown")
