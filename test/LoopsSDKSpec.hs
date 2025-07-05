@@ -68,34 +68,34 @@ main = hspec $ do
 
     describe "Client-side validation helpers" $ do
         it "createContact rejects invalid email" $ do
-            client <- newClient "dummy-key" Nothing
+            let client = LoopsClient "dummy-key"
             shouldThrowValidationError $ createContact client "not-an-email" Nothing Nothing
 
         it "updateContact rejects invalid email" $ do
-            client <- newClient "dummy-key" Nothing
+            let client = LoopsClient "dummy-key"
             shouldThrowValidationError $ updateContact client "no-at" KM.empty Nothing
 
         it "sendEvent requires at least one identifier" $ do
-            client <- newClient "dummy-key" Nothing
+            let client = LoopsClient "dummy-key"
             shouldThrowValidationError $ sendEvent client "test_event" Nothing Nothing Nothing Nothing Nothing Nothing
 
         it "getTransactionalEmails enforces perPage bounds" $ do
-            client <- newClient "dummy-key" Nothing
+            let client = LoopsClient "dummy-key"
             shouldThrowValidationError $ getTransactionalEmails client 5 Nothing
             shouldThrowValidationError $ getTransactionalEmails client 100 Nothing
 
         it "findContact rejects invalid email" $ do
-            client <- newClient "dummy-key" Nothing
+            let client = LoopsClient "dummy-key"
             shouldThrowValidationError (findContact client (Left "bad-email" :: Either Text Text))
 
         it "deleteContact rejects invalid email" $ do
-            client <- newClient "dummy-key" Nothing
+            let client = LoopsClient "dummy-key"
             shouldThrowValidationError (deleteContact client (Left "bad-email" :: Either Text Text))
 
         it "createContactProperty rejects invalid type" $ do
-            client <- newClient "dummy-key" Nothing
+            let client = LoopsClient "dummy-key"
             shouldThrowValidationError (createContactProperty client "prop" "integer")
 
         it "getContactProperties rejects invalid list param" $ do
-            client <- newClient "dummy-key" Nothing
+            let client = LoopsClient "dummy-key"
             shouldThrowValidationError (getContactProperties client "unknown")

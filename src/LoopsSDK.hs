@@ -15,8 +15,7 @@ The module provides a lightweight synchronous client implemented with
 -}
 module LoopsSDK (
     -- * Core client & errors
-    LoopsClient,
-    newClient,
+    LoopsClient (..),
     Attachment (..),
     LoopsEmail (..),
     RateLimitExceededError (..),
@@ -52,18 +51,10 @@ import Data.Aeson (
     (.=),
  )
 import qualified Data.ByteString.Char8 as BS8
-import Data.Maybe (catMaybes, fromMaybe, isJust)
+import Data.Maybe (catMaybes, isJust)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Internal.LoopsSDK
-
--- | Construct a new 'LoopsClient' with the given API key and optional API root.
-newClient :: Text -> Maybe Text -> IO LoopsClient
-newClient apiKey mRoot = do
-    let root = ensureSlash $ Data.Maybe.fromMaybe "https://app.loops.so/api/" mRoot
-    pure (LoopsClient apiKey root)
-  where
-    ensureSlash t = if T.isSuffixOf "/" t then t else T.snoc t '/'
 
 -- ---------------------------------------------------------------------------
 -- Public API – Contacts
@@ -142,7 +133,7 @@ sendEvent ::
     Maybe [(BS8.ByteString, BS8.ByteString)] ->
     IO Value
 sendEvent client eventName mEmail mUserId mContactProps mEventProps mMailingLists mHeaders = do
-    unless (Data.Maybe.isJust mEmail || Data.Maybe.isJust mUserId) $ throwIO $ ValidationError "You must provide either 'email' or 'user_id'."
+    unless (isJust mEmail || isJust mUserId) $ throwIO $ ValidationError "You must provide either 'email' or 'user_id'."
     let payload =
             object $
                 ["eventName" .= eventName]

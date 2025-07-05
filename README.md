@@ -44,7 +44,7 @@ main = do
                 }
 
     -- Send the email
-    resp <- sendTransactionalEmail client email Nothing "your-loops-api-key"
+    resp <- sendTransactionalEmail client email Nothing
     print resp
 ```
 
@@ -52,14 +52,28 @@ main = do
 
 ### LoopsClient
 
-The main client class for interacting with the Loops API.
+The main client for interacting with the Loops API.
 
 ```haskell
-client = LoopsClient(api_key="your-api-key")
+client <- newClient "your-api-key" Nothing  -- Nothing uses default API root
 ```
 
 **Parameters:**
-- `api_key` (optional): Your Loops API key. If not provided, will use the `LOOPS_TOKEN` environment variable.
+- First argument: Your Loops API key (required)
+- Second argument: Optional API root URL (pass Nothing to use default: "https://app.loops.so/api/")
+
+**Available Functions:**
+- `testApiKey` - Test your API key
+- `createContact` - Create a new contact
+- `updateContact` - Update an existing contact
+- `findContact` - Find a contact by email or user ID
+- `deleteContact` - Delete a contact
+- `createContactProperty` - Create a custom contact property
+- `getContactProperties` - Get contact properties
+- `getMailingLists` - Get all mailing lists
+- `sendEvent` - Send an event
+- `sendTransactionalEmail` - Send a transactional email
+- `getTransactionalEmails` - Get sent transactional emails
 
 
 ## Usage Examples
@@ -75,7 +89,7 @@ import Data.Text (Text)
 
 main :: IO ()
 main = do
-    client <- newClient "your-api-key" Nothing
+    let client = LoopsClient "your-api-key"
 
     let inviteEmail =
             LoopsEmail
@@ -89,7 +103,7 @@ main = do
                 , leAttachments = []
                 }
 
-    _ <- sendTransactionalEmail client inviteEmail Nothing "your-api-key"
+    _ <- sendTransactionalEmail client inviteEmail Nothing
     pure ()
 ```
 
@@ -120,10 +134,10 @@ import Data.Aeson (Value)
 
 main :: IO ()
 main = do
-    client <- newClient "your-api-key" Nothing
+    let client = LoopsClient "your-api-key"
     result <- try $ do
         let email = LoopsEmail "user@example.com" "reset-template-id" (Just True) Nothing []
-        sendTransactionalEmail client email Nothing "your-api-key" :: IO Value
+        sendTransactionalEmail client email Nothing :: IO Value
     case result of
         Left (e :: APIError) -> putStrLn $ "Failed to send email: " <> show e
         Right _             -> putStrLn "Email sent successfully!"
@@ -140,7 +154,7 @@ import Data.Text (Text)
 
 main :: IO ()
 main = do
-    client <- newClient "your-api-key" Nothing
+    let client = LoopsClient "your-api-key"
 
     let attachment = Attachment
             { filename = "invoice.pdf"
@@ -160,7 +174,7 @@ main = do
             , leAttachments = [attachment]
             }
 
-    _ <- sendTransactionalEmail client customEmail Nothing "your-api-key"
+    _ <- sendTransactionalEmail client customEmail Nothing
     putStrLn "Email sent!"
 ```
 

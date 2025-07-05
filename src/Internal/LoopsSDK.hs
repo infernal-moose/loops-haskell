@@ -141,14 +141,13 @@ validateEmail e =
 -- Loops API client (sync, http-simple based)
 -- ---------------------------------------------------------------------------
 
-data LoopsClient = LoopsClient
-    { _apiKey :: Text
-    , _apiRoot :: Text -- ensures trailing '/'
+newtype LoopsClient = LoopsClient
+    { apiKey :: Text
     }
 
 baseRequest :: LoopsClient -> Text -> Request
-baseRequest (LoopsClient apiKey root) path =
-    let full = T.unpack $ root <> path
+baseRequest (LoopsClient apiKey) path =
+    let full = T.unpack $ "https://app.loops.so/api/" <> path
         req0 = case parseRequest full of
             Left err -> error $ "Invalid URL: " ++ show err
             Right r -> r

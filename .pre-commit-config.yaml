@@ -5,10 +5,10 @@ repos:
         name: fourmolu
         entry: fourmolu --mode inplace
         language: system
-        files: ^(src|test)
+        files: ^(src|test)/.*\.hs$
 
       - id: hlint
         name: hlint
         entry: hlint
         language: system
-        files: ^(src|test)
+        files: ^(src|test)/.*\.hs$
