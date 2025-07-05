@@ -4,24 +4,24 @@
 {-# LANGUAGE RecordWildCards #-}
 
 -- | Internal implementation moved from LoopsSDK.
-module Internal.LoopsSDK
-    ( LoopsClient(..)
-    , Attachment(..)
-    , LoopsEmail(..)
-    , RateLimitExceededError(..)
-    , APIError(..)
-    , ValidationError(..)
-    , emailPattern
-    , validateEmail
-    , perform
-    , baseRequest
-    , autoParam
-    , get
-    , postJson
-    , postJsonWithHeaders
-    , putJson
-    , objectToPairs
-    ) where
+module Internal.LoopsSDK (
+    LoopsClient (..),
+    Attachment (..),
+    LoopsEmail (..),
+    RateLimitExceededError (..),
+    APIError (..),
+    ValidationError (..),
+    emailPattern,
+    validateEmail,
+    perform,
+    baseRequest,
+    autoParam,
+    get,
+    postJson,
+    postJsonWithHeaders,
+    putJson,
+    objectToPairs,
+) where
 
 import Control.Exception (Exception, throwIO)
 import Control.Monad (unless)
@@ -182,11 +182,12 @@ perform req = do
             let lim = headerInt "x-ratelimit-limit" 10
                 rem_ = headerInt "x-ratelimit-remaining" 0
             throwIO $ RateLimitExceededError (lim, rem_)
-        else if status >= 400
-            then do
-                let body = decodeBody resp
-                throwIO $ APIError status body
-            else pure (decodeBody resp)
+        else
+            if status >= 400
+                then do
+                    let body = decodeBody resp
+                    throwIO $ APIError status body
+                else pure (decodeBody resp)
 
 autoParam :: Text -> Maybe BS8.ByteString
 autoParam v = Just (BS8.pack $ T.unpack v)

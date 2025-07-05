@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Test suite for the LoopsSDK module.-}
+-- | Test suite for the LoopsSDK module.
 module Main (main) where
 
 import Data.Aeson (Value (..), object, toJSON, (.=))

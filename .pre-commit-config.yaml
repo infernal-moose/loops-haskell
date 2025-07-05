@@ -2,13 +2,13 @@ repos:
   - repo: local
     hooks:
       - id: fourmolu
-        name: fourmolu (formatter)
+        name: fourmolu
         entry: fourmolu --mode inplace
         language: system
-        files: '.*\\.(hs|hs-boot)$'
+        files: ^(src|test)
 
       - id: hlint
-        name: hlint (linter)
+        name: hlint
         entry: hlint
         language: system
-        files: '.*\\.(hs|hs-boot)$'
+        files: ^(src|test)
