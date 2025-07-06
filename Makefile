@@ -1,5 +1,7 @@
 setup:
-	pre-commit install
+	@command -v pre-commit >/dev/null 2>&1 && \
+	  pre-commit install || \
+	  echo "⚠️  pre-commit not found - skipping hook installation"
 	stack build
 .PHONY: setup
 

@@ -130,7 +130,7 @@ instance (ToJSON a) => ToJSON (LoopsEmail a) where
 -- ---------------------------------------------------------------------------
 
 emailPattern :: BS8.ByteString
-emailPattern = BS8.pack "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+emailPattern = BS8.pack "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
 
 validateEmail :: Text -> IO ()
 validateEmail e =
@@ -167,14 +167,15 @@ perform req = do
         readMaybeBS bs = case reads (BS8.unpack bs) of
             [(n, "")] -> Just n
             _ -> Nothing
-        decodeBody r =
-            if LBS.length (getResponseBody r) > 0
-                then case eitherDecode' (getResponseBody r) of
-                    Right v -> v
-                    Left _ -> error "Failed to decode JSON response"
-                else case fromJSON Null of
-                    Success v -> v
-                    Error e -> error e
+        decodeBody :: (FromJSON b) => LBS.ByteString -> IO b
+        decodeBody body =
+            if LBS.null body
+                then case fromJSON Null of
+                    Success v -> return v
+                    Error e -> throwIO $ APIError status (String $ T.pack $ "Failed to decode empty JSON response: " ++ e)
+                else case eitherDecode' body of
+                    Left e -> throwIO $ APIError status (String $ T.pack $ "Failed to decode JSON response: " ++ e)
+                    Right v -> return v
         status = getResponseStatusCode resp
     if status == 429
         then do
@@ -183,10 +184,8 @@ perform req = do
             throwIO $ RateLimitExceededError (lim, rem_)
         else
             if status >= 400
-                then do
-                    let body = decodeBody resp
-                    throwIO $ APIError status body
-                else pure (decodeBody resp)
+                then decodeBody (getResponseBody resp) >>= throwIO . APIError status
+                else decodeBody (getResponseBody resp)
 
 autoParam :: Text -> Maybe BS8.ByteString
 autoParam v = Just (BS8.pack $ T.unpack v)

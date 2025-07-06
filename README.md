@@ -27,7 +27,7 @@ import Data.Text (Text)
 main :: IO ()
 main = do
     -- Initialise the client (optionally pass Nothing for the default API root)
-    client <- newClient "your-loops-api-key" Nothing
+    let client = LoopsClient "your-loops-api-key"
 
     -- Build the email payload
     let email =
@@ -55,12 +55,11 @@ main = do
 The main client for interacting with the Loops API.
 
 ```haskell
-client <- newClient "your-api-key" Nothing  -- Nothing uses default API root
+let client = LoopsClient "your-api-key"
 ```
 
 **Parameters:**
 - First argument: Your Loops API key (required)
-- Second argument: Optional API root URL (pass Nothing to use default: "https://app.loops.so/api/")
 
 **Available Functions:**
 - `testApiKey` - Test your API key
@@ -119,7 +118,7 @@ import Data.Text (pack)
 main :: IO ()
 main = do
     token <- fmap pack <$> lookupEnv "LOOPS_TOKEN" >>= maybe (fail "LOOPS_TOKEN not set") pure
-    client <- newClient token Nothing
+    let client = LoopsClient token
     putStrLn "Client initialised successfully – ready to send emails!"
 ```
 
