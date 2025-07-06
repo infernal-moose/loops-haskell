@@ -12,7 +12,7 @@ Add `loops-sdk` to your project.
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import LoopsSDK
+import Loops
 import Data.Aeson (object, (.=))
 import Data.Text (Text)
 
@@ -70,7 +70,7 @@ let client = LoopsClient "your-api-key"
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import LoopsSDK
+import Loops
 import Data.Aeson (object, (.=))
 import Data.Text (Text)
 
@@ -94,7 +94,7 @@ main = do
 ### Preferred Usage
 
 ```haskell
-import LoopsSDK
+import Loops
 
 data InviteEmailVariables = InviteEmailVariables
   { inviterName :: Text
@@ -125,7 +125,7 @@ main = do
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import LoopsSDK
+import Loops
 import System.Environment (lookupEnv)
 import Data.Text (pack)
 
@@ -141,7 +141,7 @@ main = do
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import LoopsSDK
+import Loops
 import Control.Exception (try)
 import Data.Aeson (Value)
 
@@ -161,7 +161,7 @@ main = do
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import LoopsSDK
+import Loops
 import Data.Aeson (object, (.=))
 import Data.Text (Text)
 

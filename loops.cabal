@@ -1,17 +1,17 @@
 cabal-version:      2.4
-name:               loops-haskell
-version:            0.1.0.0
+name:               loops
+version:            0.2.0.0
 license:            MIT
 license-file:       LICENSE
-author:             Loops.so
-maintainer:         dev@loops.so
+author:             Familiar Publishing
+maintainer:         jake@familiar.pub
 category:           Web
 synopsis:           Haskell SDK for Loops email platform
 build-type:         Simple
 
 library
-  exposed-modules:     LoopsSDK
-  other-modules:       Internal.LoopsSDK
+  exposed-modules:     Loops
+  other-modules:       Internal.Loops
   hs-source-dirs:      src
   default-language:    Haskell2010
   build-depends:
@@ -35,12 +35,12 @@ library
 test-suite loopsdk-spec
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
-  main-is:            LoopsSDKSpec.hs
+  main-is:            LoopsSpec.hs
   ghc-options:        -Wall -threaded -rtsopts -with-rtsopts=-N
   default-language:   Haskell2010
   build-depends:
       base >=4.12 && <5,
-      loops-haskell,
+      loops,
       hspec,
       aeson,
       text,
