@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 {- |
@@ -45,16 +45,84 @@ import Control.Exception (throwIO)
 import Control.Monad (unless, when)
 import Data.Aeson (
     Object,
-    ToJSON (toJSON),
+    ToJSON (toEncoding, toJSON),
     Value (..),
+    defaultOptions,
+    fieldLabelModifier,
+    genericToEncoding,
+    genericToJSON,
     object,
     (.=),
  )
+import qualified Data.Aeson.KeyMap as KM
 import qualified Data.ByteString.Char8 as BS8
 import Data.Maybe (catMaybes, isJust)
 import Data.Text (Text)
 import qualified Data.Text as T
+import GHC.Generics (Generic)
 import Internal.LoopsSDK
+
+-- | Represents contact properties that can be updated when sending an event
+data ContactProperties = ContactProperties
+    { cpFirstName :: Maybe Text
+    , cpLastName :: Maybe Text
+    , cpSubscribed :: Maybe Bool
+    , cpUserGroup :: Maybe Text
+    -- Add more contact properties as needed
+    }
+    deriving (Show, Eq, Generic)
+
+instance ToJSON ContactProperties where
+    toJSON =
+        genericToJSON
+            defaultOptions
+                { fieldLabelModifier = drop 2 -- Remove 'cp' prefix
+                }
+    toEncoding =
+        genericToEncoding
+            defaultOptions
+                { fieldLabelModifier = drop 2 -- Remove 'cp' prefix
+                }
+
+-- | Represents event-specific properties
+data EventProperties = EventProperties
+    { epValue :: Maybe Double
+    , epCategory :: Maybe Text
+    , epUrl :: Maybe Text
+    -- Add more event properties as needed
+    }
+    deriving (Show, Eq, Generic)
+
+instance ToJSON EventProperties where
+    toJSON =
+        genericToJSON
+            defaultOptions
+                { fieldLabelModifier = drop 2 -- Remove 'ep' prefix
+                }
+    toEncoding =
+        genericToEncoding
+            defaultOptions
+                { fieldLabelModifier = drop 2 -- Remove 'ep' prefix
+                }
+
+-- | Represents a mailing list subscription
+data MailingList = MailingList
+    { mlId :: Text
+    , mlName :: Text
+    }
+    deriving (Show, Eq, Generic)
+
+instance ToJSON MailingList where
+    toJSON =
+        genericToJSON
+            defaultOptions
+                { fieldLabelModifier = drop 2 -- Remove 'ml' prefix
+                }
+    toEncoding =
+        genericToEncoding
+            defaultOptions
+                { fieldLabelModifier = drop 2 -- Remove 'ml' prefix
+                }
 
 -- ---------------------------------------------------------------------------
 -- Public API – Contacts
@@ -124,23 +192,54 @@ getMailingLists client = get client "v1/lists" []
 
 sendEvent ::
     LoopsClient ->
+    -- | Name of the event to send
     Text ->
+    -- | Email of the contact (either email or userId must be provided)
     Maybe Text ->
+    -- | User ID of the contact (either email or userId must be provided)
     Maybe Text ->
-    Maybe Object ->
-    Maybe Object ->
-    Maybe Object ->
+    -- | Contact properties to update
+    Maybe ContactProperties ->
+    -- | Event-specific properties
+    Maybe EventProperties ->
+    -- | Mailing lists to subscribe the contact to
+    Maybe [MailingList] ->
+    -- | Additional HTTP headers
     Maybe [(BS8.ByteString, BS8.ByteString)] ->
     IO Value
 sendEvent client eventName mEmail mUserId mContactProps mEventProps mMailingLists mHeaders = do
-    unless (isJust mEmail || isJust mUserId) $ throwIO $ ValidationError "You must provide either 'email' or 'user_id'."
-    let payload =
+    unless (isJust mEmail || isJust mUserId) $
+        throwIO $
+            ValidationError "You must provide either 'email' or 'user_id'."
+
+    let basePayload = ["eventName" .= eventName]
+
+        contactPayload = case mContactProps of
+            Just props -> case toJSON props of
+                Object o -> map (\(k, v) -> (k, v)) (KM.toList o)
+                _ -> []
+            Nothing -> []
+
+        eventPayload = ["eventProperties" .= mEventProps | isJust mEventProps]
+
+        mailingListsPayload = ["mailingLists" .= mMailingLists | isJust mMailingLists]
+
+        identifierPayload =
+            catMaybes
+                [ ("email" .=) <$> mEmail
+                , ("userId" .=) <$> mUserId
+                ]
+
+        payload =
             object $
-                ["eventName" .= eventName]
-                    ++ maybe [] objectToPairs mContactProps
-                    ++ ["eventProperties" .= mEventProps]
-                    ++ ["mailingLists" .= mMailingLists]
-                    ++ catMaybes [("email" .=) <$> mEmail, ("userId" .=) <$> mUserId]
+                mconcat
+                    [ basePayload
+                    , contactPayload
+                    , eventPayload
+                    , mailingListsPayload
+                    , identifierPayload
+                    ]
+
     postJsonWithHeaders client "v1/events/send" payload mHeaders
 
 sendTransactionalEmail :: (ToJSON a) => LoopsClient -> LoopsEmail a -> Maybe [(BS8.ByteString, BS8.ByteString)] -> IO Value
