@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Test suite for the LoopsSDK module.
+-- | Test suite for the Loops module.
 module Main (main) where
 
 import Data.Aeson (Value (..), object, toJSON, (.=))
 import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
 import Data.Text (Text)
-import LoopsSDK
+import Loops
 import Test.Hspec
 
 {- | Convenience predicate for checking that a given IO action throws a

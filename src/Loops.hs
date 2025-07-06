@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {- |
-Module      : LoopsSDK
+Module      : Loops
 Description : Haskell SDK for Loops (https://loops.so)
 
 This implementation mirrors the public interface of the official TypeScript SDK
@@ -13,7 +13,7 @@ REST documentation.
 The module provides a lightweight synchronous client implemented with
 @http-conduit@ (via @http-simple@) and uses @aeson@ for JSON serialisation.
 -}
-module LoopsSDK (
+module Loops (
     -- * Core client & errors
     LoopsClient (..),
     Attachment (..),
@@ -60,7 +60,7 @@ import Data.Maybe (catMaybes, isJust)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
-import Internal.LoopsSDK
+import Internal.Loops
 
 -- | Represents contact properties that can be updated when sending an event
 data ContactProperties = ContactProperties

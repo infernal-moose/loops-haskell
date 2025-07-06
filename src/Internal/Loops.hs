@@ -3,8 +3,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
--- | Internal implementation moved from LoopsSDK.
-module Internal.LoopsSDK (
+-- | Internal implementation moved from Loops.
+module Internal.Loops (
     LoopsClient (..),
     Attachment (..),
     LoopsEmail (..),
