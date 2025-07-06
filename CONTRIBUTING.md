@@ -8,7 +8,8 @@ Thank you for your interest in contributing to Loops Haskell SDK. We welcome con
 2. Clone your fork locally: `git clone <https://github.com/infernal-moose/loops-haskell.git>`
 3. Create a new branch for your feature or bug fix: `git checkout -b your-branch-name`
 4. Install Stack: https://docs.haskellstack.org/en/stable/install_and_upgrade/
-5. Install dependencies: `make setup`
+5. Install pre-commit hooks: `https://pre-commit.com`
+6. Install dependencies: `make setup`
 
 ## Making Changes
 

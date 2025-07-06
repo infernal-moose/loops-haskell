@@ -1,10 +1,14 @@
 repos:
-  - repo: https://github.com/fourmolu/fourmolu
-    rev: v0.18.0.0
+  - repo: local
     hooks:
       - id: fourmolu
+        name: fourmolu
+        entry: fourmolu --mode inplace
+        language: system
+        files: ^(src|test)/.*\.hs$
 
-  - repo: https://github.com/ndmitchell/hlint
-    rev: v3.10
-    hooks:
       - id: hlint
+        name: hlint
+        entry: hlint
+        language: system
+        files: ^(src|test)/.*\.hs$
