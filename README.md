@@ -2,17 +2,9 @@
 
 A self-contained Haskell module that acts as a Loops.so SDK, providing the same interfaces as the existing Loops SDKs for sending transactional emails.
 
-## Features
-
-- **Complete API Coverage**: Supports all transactional email types (invite, validation, password reset)
-- **Type Safety**: Uses Python dataclasses and type hints for better development experience
-- **Error Handling**: Comprehensive error handling with meaningful error messages
-- **Testing**: Extensive test suite with mocking for external API calls
-- **Easy Integration**: Simple, intuitive API that mirrors other Loops SDK
-
 ## Installation
 
-Add `loops` to your project.
+Add `loops-sdk` to your project.
 
 
 ## Quick Start
@@ -35,11 +27,7 @@ main = do
                 { leEmail = "newuser@example.com"
                 , leTransactionalId = "your-custom-template-id"
                 , leAddToAudience = Just True
-                , leDataVariables = Just $ object
-                    [ "customerName"  .= ("Alice Johnson" :: Text)
-                    , "invoiceNumber" .= ("INV-001"       :: Text)
-                    , "amount"        .= ("$99.99"        :: Text)
-                    ]
+                , leDataVariables = Just $ KM.fromList [(K.fromText "name", String "John")]
                 , leAttachments = []
                 }
 
@@ -95,16 +83,42 @@ main = do
                 { leEmail = "user@example.com"
                 , leTransactionalId = "your-invite-template-id"
                 , leAddToAudience = Just True
-                , leDataVariables = Just $ object
-                    [ "inviterName" .= ("John Doe" :: Text)
-                    , "inviteUrl"   .= ("https://example.com/invite/123" :: Text)
-                    ]
+                , leDataVariables = Just $ KM.fromList [(K.fromText "name", String "John")]
                 , leAttachments = []
                 }
 
     _ <- sendTransactionalEmail client inviteEmail Nothing
     pure ()
 ```
+
+### Preferred Usage
+
+```haskell
+import LoopsSDK
+
+data InviteEmailVariables = InviteEmailVariables
+  { inviterName :: Text
+  , inviteUrl :: Text
+  }
+  deriving (Show, Generic, ToJSON)
+
+mkInviteEmail :: Email -> InviteEmailVariables -> LoopsEmail InviteEmailVariables
+mkInviteEmail email vars =
+  LoopsEmail
+    { leEmail = emailToText email
+    , leTransactionalId = "your-template-id"
+    , leAddToAudience = Just True
+    , leDataVariables = Just vars
+    , leAttachments = []
+    }
+
+main :: IO ()
+main = do
+    token <- fmap pack <$> lookupEnv "LOOPS_TOKEN" >>= maybe (fail "LOOPS_TOKEN not set") pure
+    _ <- liftIO $ do
+        let client = LoopsClient $ T.pack token
+        sendTransactionalEmail client inviteEmail Nothing
+``` 
 
 ### Using Environment Variables
 
@@ -165,11 +179,7 @@ main = do
             { leEmail = "customer@example.com"
             , leTransactionalId = "your-custom-template-id"
             , leAddToAudience = Just True
-            , leDataVariables = Just $ object
-                [ "customerName"  .= ("Alice Johnson" :: Text)
-                , "invoiceNumber" .= ("INV-001"       :: Text)
-                , "amount"        .= ("$99.99"        :: Text)
-                ]
+            , leDataVariables = Just $ KM.fromList [(K.fromText "name", String "John")]
             , leAttachments = [attachment]
             }
 
