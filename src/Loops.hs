@@ -28,16 +28,19 @@ module Loops (
     updateContact,
     findContact,
     deleteContact,
+    ContactProperties (..),
 
     -- * Contact properties & mailing lists
     createContactProperty,
     getContactProperties,
     getMailingLists,
+    MailingList (..),
 
     -- * Events & transactional emails
     sendEvent,
     sendTransactionalEmail,
     getTransactionalEmails,
+    EventProperties (..),
 )
 where
 
