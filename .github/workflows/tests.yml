@@ -8,6 +8,16 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ghc: "9.8"
+            stack-yaml: "stack.yaml"
+          - ghc: "9.10"
+            stack-yaml: "stack-ghc910.yaml"
+          - ghc: "9.12"
+            stack-yaml: "stack-ghc912.yaml"
 
     steps:
       - uses: actions/checkout@v4
@@ -23,9 +33,9 @@ jobs:
           path: |
             ~/.stack
             .stack-work
-          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml') }}
+          key: ${{ runner.os }}-stack-${{ matrix.ghc }}-${{ hashFiles(matrix.stack-yaml) }}
           restore-keys: |
-            ${{ runner.os }}-stack-
+            ${{ runner.os }}-stack-${{ matrix.ghc }}-
 
       - name: Run test suite
-        run: stack test
+        run: stack test --stack-yaml ${{ matrix.stack-yaml }}

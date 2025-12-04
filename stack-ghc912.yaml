@@ -1,0 +1,7 @@
+# Stack configuration for GHC 9.12
+# Use: stack test --stack-yaml stack-ghc912.yaml
+
+snapshot: nightly-2025-12-01  # GHC 9.12.x
+
+packages:
+  - .

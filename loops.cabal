@@ -8,6 +8,10 @@ maintainer:         jake@familiar.pub
 category:           Web
 synopsis:           Haskell SDK for Loops email platform
 build-type:         Simple
+tested-with:
+    GHC == 9.8.4
+  , GHC == 9.10.3
+  , GHC == 9.12.2
 
 library
   exposed-modules:     Loops
@@ -26,9 +30,6 @@ library
       case-insensitive,
       exceptions,
       transformers
-  build-tool-depends:
-      hlint:hlint,
-      fourmolu:fourmolu
   ghc-options: -Wall -O2
 
 

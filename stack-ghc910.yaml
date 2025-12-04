@@ -1,0 +1,7 @@
+# Stack configuration for GHC 9.10
+# Use: stack test --stack-yaml stack-ghc910.yaml
+
+snapshot: lts-24.19  # GHC 9.10.3
+
+packages:
+  - .
