@@ -41,6 +41,15 @@ module Loops (
     sendTransactionalEmail,
     getTransactionalEmails,
     EventProperties (..),
+
+    -- * Webhook event parsing
+    parseWebhookEvent,
+    parseWebhookEventValue,
+    WebhookEvent (..),
+    WebhookPayload (..),
+    ContactIdentity (..),
+    WebhookEmailRef (..),
+    WebhookMailingList (..),
 )
 where
 

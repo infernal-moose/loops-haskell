@@ -11,6 +11,13 @@ module Internal.Loops (
     RateLimitExceededError (..),
     APIError (..),
     ValidationError (..),
+    WebhookEvent (..),
+    WebhookPayload (..),
+    ContactIdentity (..),
+    WebhookEmailRef (..),
+    WebhookMailingList (..),
+    parseWebhookEvent,
+    parseWebhookEventValue,
     emailPattern,
     validateEmail,
     perform,
@@ -26,7 +33,7 @@ module Internal.Loops (
 import Control.Exception (Exception, throwIO)
 import Control.Monad (unless)
 import Data.Aeson (
-    FromJSON,
+    FromJSON (parseJSON),
     Object,
     Result (..),
     ToJSON (toJSON),
@@ -34,10 +41,14 @@ import Data.Aeson (
     eitherDecode',
     fromJSON,
     object,
+    withObject,
+    (.:),
+    (.:?),
     (.=),
  )
 import qualified Data.Aeson.KeyMap as KM
 import Data.Aeson.Types (Pair)
+import qualified Data.Aeson.Types
 import Data.Bifunctor (first)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
@@ -124,6 +135,102 @@ instance (ToJSON a) => ToJSON (LoopsEmail a) where
         attachments = case leAttachments of
             [] -> []
             xs -> ["attachments" .= xs]
+
+-- ---------------------------------------------------------------------------
+-- Webhook types
+-- ---------------------------------------------------------------------------
+
+data ContactIdentity = ContactIdentity
+    { ciId :: Text
+    , ciEmail :: Text
+    , ciUserId :: Maybe Text
+    }
+    deriving (Show, Eq, Generic)
+
+instance FromJSON ContactIdentity where
+    parseJSON = withObject "ContactIdentity" $ \v ->
+        ContactIdentity
+            <$> v .: "id"
+            <*> v .: "email"
+            <*> v .:? "userId"
+
+data WebhookEmailRef = WebhookEmailRef
+    { werId :: Text
+    , werEmailMessageId :: Text
+    , werSubject :: Text
+    }
+    deriving (Show, Eq, Generic)
+
+instance FromJSON WebhookEmailRef where
+    parseJSON = withObject "WebhookEmailRef" $ \v ->
+        WebhookEmailRef
+            <$> v .: "id"
+            <*> v .: "emailMessageId"
+            <*> v .: "subject"
+
+data WebhookMailingList = WebhookMailingList
+    { wmlId :: Text
+    , wmlName :: Text
+    , wmlDescription :: Maybe Text
+    , wmlIsPublic :: Bool
+    }
+    deriving (Show, Eq, Generic)
+
+instance FromJSON WebhookMailingList where
+    parseJSON = withObject "WebhookMailingList" $ \v ->
+        WebhookMailingList
+            <$> v .: "id"
+            <*> v .: "name"
+            <*> v .:? "description"
+            <*> v .: "isPublic"
+
+data WebhookPayload
+    = TestEvent Text
+    | ContactUnsubscribed ContactIdentity
+    | EmailUnsubscribed Text Text WebhookEmailRef ContactIdentity
+    | MailingListUnsubscribed ContactIdentity WebhookMailingList
+    | UnknownEvent Text Value
+    deriving (Show, Eq)
+
+data WebhookEvent = WebhookEvent
+    { weEventTime :: Int
+    , weWebhookSchemaVersion :: Text
+    , wePayload :: WebhookPayload
+    }
+    deriving (Show, Eq)
+
+instance FromJSON WebhookEvent where
+    parseJSON = withObject "WebhookEvent" $ \v -> do
+        eventTime <- v .: "eventTime"
+        version <- v .: "webhookSchemaVersion"
+        eventName <- v .: "eventName" :: Data.Aeson.Types.Parser Text
+        payload <- case eventName of
+            "testing.testEvent" -> do
+                msg <- v .: "message"
+                pure $ TestEvent msg
+            "contact.unsubscribed" -> do
+                ci <- v .: "contactIdentity"
+                pure $ ContactUnsubscribed ci
+            "email.unsubscribed" -> do
+                srcType <- v .: "sourceType"
+                campId <- v .: "campaignId"
+                emailRef <- v .: "email"
+                ci <- v .: "contactIdentity"
+                pure $ EmailUnsubscribed srcType campId emailRef ci
+            "contact.mailingList.unsubscribed" -> do
+                ci <- v .: "contactIdentity"
+                ml <- v .: "mailingList"
+                pure $ MailingListUnsubscribed ci ml
+            other -> pure $ UnknownEvent other (Object v)
+        pure $ WebhookEvent eventTime version payload
+
+parseWebhookEvent :: LBS.ByteString -> Either String WebhookEvent
+parseWebhookEvent = eitherDecode'
+
+parseWebhookEventValue :: Value -> Either String WebhookEvent
+parseWebhookEventValue v = case fromJSON v of
+    Success e -> Right e
+    Error msg -> Left msg
 
 -- ---------------------------------------------------------------------------
 -- Internal helpers
