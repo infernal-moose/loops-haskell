@@ -209,16 +209,16 @@ instance FromJSON WebhookEvent where
                 msg <- v .: "message"
                 pure $ TestEvent msg
             "contact.unsubscribed" -> do
-                ci <- v .: "contact"
+                ci <- v .: "contactIdentity"
                 pure $ ContactUnsubscribed ci
             "email.unsubscribed" -> do
                 srcType <- v .: "sourceType"
                 campId <- v .: "campaignId"
                 emailRef <- v .: "email"
-                ci <- v .: "contact"
+                ci <- v .: "contactIdentity"
                 pure $ EmailUnsubscribed srcType campId emailRef ci
             "contact.mailingList.unsubscribed" -> do
-                ci <- v .: "contact"
+                ci <- v .: "contactIdentity"
                 ml <- v .: "mailingList"
                 pure $ MailingListUnsubscribed ci ml
             other -> pure $ UnknownEvent other (Object v)

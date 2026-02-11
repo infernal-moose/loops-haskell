@@ -123,7 +123,7 @@ main = hspec $ do
                     "{ \"eventName\": \"contact.unsubscribed\""
                         <> ", \"eventTime\": 1700000001"
                         <> ", \"webhookSchemaVersion\": \"1.0\""
-                        <> ", \"contact\": { \"id\": \"c1\", \"email\": \"a@b.com\", \"userId\": \"u1\" } }"
+                        <> ", \"contactIdentity\": { \"id\": \"c1\", \"email\": \"a@b.com\", \"userId\": \"u1\" } }"
             case parseWebhookEvent json of
                 Left err -> expectationFailure err
                 Right evt -> case wePayload evt of
@@ -141,7 +141,7 @@ main = hspec $ do
                         <> ", \"sourceType\": \"campaign\""
                         <> ", \"campaignId\": \"camp1\""
                         <> ", \"email\": { \"id\": \"e1\", \"emailMessageId\": \"msg1\", \"subject\": \"Hello\" }"
-                        <> ", \"contact\": { \"id\": \"c2\", \"email\": \"b@c.com\" } }"
+                        <> ", \"contactIdentity\": { \"id\": \"c2\", \"email\": \"b@c.com\" } }"
             case parseWebhookEvent json of
                 Left err -> expectationFailure err
                 Right evt -> case wePayload evt of
@@ -161,7 +161,7 @@ main = hspec $ do
                     "{ \"eventName\": \"contact.mailingList.unsubscribed\""
                         <> ", \"eventTime\": 1700000003"
                         <> ", \"webhookSchemaVersion\": \"1.0\""
-                        <> ", \"contact\": { \"id\": \"c3\", \"email\": \"c@d.com\" }"
+                        <> ", \"contactIdentity\": { \"id\": \"c3\", \"email\": \"c@d.com\" }"
                         <> ", \"mailingList\": { \"id\": \"ml1\", \"name\": \"Newsletter\", \"description\": \"Weekly\", \"isPublic\": true } }"
             case parseWebhookEvent json of
                 Left err -> expectationFailure err
