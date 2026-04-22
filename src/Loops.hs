@@ -74,27 +74,29 @@ import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Internal.Loops
 
--- | Represents contact properties that can be updated when sending an event
-data ContactProperties = ContactProperties
-    { cpFirstName :: Maybe Text
-    , cpLastName :: Maybe Text
-    , cpSubscribed :: Maybe Bool
-    , cpUserGroup :: Maybe Text
-    -- Add more contact properties as needed
-    }
-    deriving (Show, Eq, Generic)
+{- | Contact properties to update when sending an event.
+
+Loops recognises the standard property names (@firstName@, @lastName@,
+@subscribed@, @userGroup@, @source@) and updates the contact's default
+fields; any other key is stored as a custom contact property. The SDK
+does not duplicate the standard fields as typed record fields — callers
+build an 'Object' directly so the wire payload matches what Loops expects.
+
+Example:
+
+@
+ContactProperties $ KM.fromList
+  [ (\"subscribed\", Bool True)
+  , (\"userGroup\", String \"Administrator\")
+  , (\"organizationKind\", String \"PublisherOrg\")
+  ]
+@
+-}
+newtype ContactProperties = ContactProperties Object
+    deriving (Show, Eq)
 
 instance ToJSON ContactProperties where
-    toJSON =
-        genericToJSON
-            defaultOptions
-                { fieldLabelModifier = drop 2 -- Remove 'cp' prefix
-                }
-    toEncoding =
-        genericToEncoding
-            defaultOptions
-                { fieldLabelModifier = drop 2 -- Remove 'cp' prefix
-                }
+    toJSON (ContactProperties o) = Object o
 
 -- | Represents event-specific properties
 data EventProperties = EventProperties
@@ -227,10 +229,10 @@ sendEvent client eventName mEmail mUserId mContactProps mEventProps mMailingList
     let basePayload = ["eventName" .= eventName]
 
         contactPayload = case mContactProps of
-            Just props -> case toJSON props of
-                Object o -> map (\(k, v) -> (k, v)) (KM.toList o)
-                _ -> []
-            Nothing -> []
+            Just (ContactProperties o)
+                | not (KM.null o) ->
+                    ["contactProperties" .= Object o]
+            _ -> []
 
         eventPayload = ["eventProperties" .= mEventProps | isJust mEventProps]
 
