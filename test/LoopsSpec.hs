@@ -54,6 +54,21 @@ main = hspec $ do
                         ]
             toJSON email `shouldBe` expected
 
+        it "ContactProperties encodes as the underlying JSON object" $ do
+            let props =
+                    ContactProperties $
+                        KM.fromList
+                            [ (K.fromText "subscribed", Bool False)
+                            , (K.fromText "userGroup", String "Administrator")
+                            , (K.fromText "organizationKind", String "PublisherOrg")
+                            ]
+            toJSON props
+                `shouldBe` object
+                    [ "subscribed" .= False
+                    , "userGroup" .= ("Administrator" :: Text)
+                    , "organizationKind" .= ("PublisherOrg" :: Text)
+                    ]
+
         it "omits attachments key when list is empty" $ do
             let email :: LoopsEmail (KM.KeyMap Value)
                 email =
