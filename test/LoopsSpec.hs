@@ -69,6 +69,49 @@ main = hspec $ do
                     , "organizationKind" .= ("PublisherOrg" :: Text)
                     ]
 
+        it "sendEvent payload flattens contact properties to top-level fields" $ do
+            -- Loops' Send Event API requires contact properties as top-level
+            -- attributes; nesting them under "contactProperties" would cause
+            -- Loops to register the whole object as a single custom property.
+            let props =
+                    ContactProperties $
+                        KM.fromList
+                            [ (K.fromText "subscribed", Bool True)
+                            , (K.fromText "userGroup", String "Administrator")
+                            , (K.fromText "organizationKind", String "PublisherOrg")
+                            ]
+                payload =
+                    buildSendEventPayload
+                        "signup"
+                        (Just "user@example.com")
+                        Nothing
+                        (Just props)
+                        Nothing
+                        Nothing
+            payload
+                `shouldBe` object
+                    [ "eventName" .= ("signup" :: Text)
+                    , "subscribed" .= True
+                    , "userGroup" .= ("Administrator" :: Text)
+                    , "organizationKind" .= ("PublisherOrg" :: Text)
+                    , "email" .= ("user@example.com" :: Text)
+                    ]
+
+        it "sendEvent payload omits contactProperties wrapper when none given" $ do
+            let payload =
+                    buildSendEventPayload
+                        "ping"
+                        Nothing
+                        (Just "user-123")
+                        Nothing
+                        Nothing
+                        Nothing
+            payload
+                `shouldBe` object
+                    [ "eventName" .= ("ping" :: Text)
+                    , "userId" .= ("user-123" :: Text)
+                    ]
+
         it "omits attachments key when list is empty" $ do
             let email :: LoopsEmail (KM.KeyMap Value)
                 email =
