@@ -38,6 +38,7 @@ module Loops (
 
     -- * Events & transactional emails
     sendEvent,
+    buildSendEventPayload,
     sendTransactionalEmail,
     getTransactionalEmails,
     EventProperties (..),
@@ -76,11 +77,13 @@ import Internal.Loops
 
 {- | Contact properties to update when sending an event.
 
-Loops recognises the standard property names (@firstName@, @lastName@,
-@subscribed@, @userGroup@, @source@) and updates the contact's default
-fields; any other key is stored as a custom contact property. The SDK
-does not duplicate the standard fields as typed record fields — callers
-build an 'Object' directly so the wire payload matches what Loops expects.
+Loops' Send Event API expects contact properties as top-level attributes
+in the request body, alongside @email@ and @eventName@ (see
+<https://loops.so/docs/api-reference/send-event>). 'sendEvent' flattens
+the wrapped 'Object' to top-level keys for you. Loops recognises the
+standard property names (@firstName@, @lastName@, @subscribed@,
+@userGroup@, @source@) and updates the contact's default fields; any
+other key is stored as a custom contact property.
 
 Example:
 
@@ -225,14 +228,45 @@ sendEvent client eventName mEmail mUserId mContactProps mEventProps mMailingList
     unless (isJust mEmail || isJust mUserId) $
         throwIO $
             ValidationError "You must provide either 'email' or 'user_id'."
+    postJsonWithHeaders
+        client
+        "v1/events/send"
+        (buildSendEventPayload eventName mEmail mUserId mContactProps mEventProps mMailingLists)
+        mHeaders
 
+{- | Build the JSON payload that 'sendEvent' POSTs to @v1/events/send@.
+
+The Loops Send Event API expects contact properties as top-level
+attributes alongside @email@\/@eventName@, *not* nested under a
+@contactProperties@ key (see <https://loops.so/docs/api-reference/send-event>:
+"These should be added as top-level attributes in the request"). This
+helper flattens the wrapped 'ContactProperties' object accordingly so
+Loops recognises the standard names (@firstName@, @subscribed@, …) and
+stores anything else as a custom contact property.
+
+Exposed primarily so callers can assert on the assembled payload in
+tests; production code should call 'sendEvent'.
+-}
+buildSendEventPayload ::
+    -- | Event name
+    Text ->
+    -- | Email of the contact (optional)
+    Maybe Text ->
+    -- | User ID of the contact (optional)
+    Maybe Text ->
+    -- | Contact properties to update
+    Maybe ContactProperties ->
+    -- | Event-specific properties
+    Maybe EventProperties ->
+    -- | Mailing lists to subscribe the contact to
+    Maybe [MailingList] ->
+    Value
+buildSendEventPayload eventName mEmail mUserId mContactProps mEventProps mMailingLists =
     let basePayload = ["eventName" .= eventName]
 
         contactPayload = case mContactProps of
-            Just (ContactProperties o)
-                | not (KM.null o) ->
-                    ["contactProperties" .= Object o]
-            _ -> []
+            Just (ContactProperties o) -> KM.toList o
+            Nothing -> []
 
         eventPayload = ["eventProperties" .= mEventProps | isJust mEventProps]
 
@@ -243,18 +277,14 @@ sendEvent client eventName mEmail mUserId mContactProps mEventProps mMailingList
                 [ ("email" .=) <$> mEmail
                 , ("userId" .=) <$> mUserId
                 ]
-
-        payload =
-            object $
-                mconcat
-                    [ basePayload
-                    , contactPayload
-                    , eventPayload
-                    , mailingListsPayload
-                    , identifierPayload
-                    ]
-
-    postJsonWithHeaders client "v1/events/send" payload mHeaders
+     in object $
+            mconcat
+                [ basePayload
+                , contactPayload
+                , eventPayload
+                , mailingListsPayload
+                , identifierPayload
+                ]
 
 sendTransactionalEmail :: (ToJSON a) => LoopsClient -> LoopsEmail a -> Maybe [(BS8.ByteString, BS8.ByteString)] -> IO Value
 sendTransactionalEmail client email = postJsonWithHeaders client "v1/transactional" (toJSON email)
